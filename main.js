@@ -4,6 +4,8 @@ const { spawn, exec } = require('node:child_process');
 const http = require('node:http');
 
 let mainWindow;
+let serverProc = null;
+let backendShutDown = false;
 
 function execPromise(command, statusTitle) {
   return new Promise((resolve) => {
@@ -113,8 +115,8 @@ async function runSetupSequence() {
   }
 
   updateProgress('Step 4/4: Booting Server', 'Starting Express on port 3000...');
-  const serverProc = spawn('wsl', ['node', 'server/server.js']);
-  
+  serverProc = spawn('wsl', ['node', 'server/server.js']);
+
   serverProc.stdout.on('data', data => console.log(`[Server] ${data.toString().trim()}`));
   serverProc.stderr.on('data', data => console.error(`[Server Error] ${data.toString().trim()}`));
 
@@ -160,6 +162,8 @@ async function createWindow() {
   // 3. Load Main App
   const backendUrl = process.env.BACKEND_URL || 'http://localhost:3000';
   if (setupOk) {
+    // Force clear cache so frontend updates are always loaded
+    await mainWindow.webContents.session.clearCache();
     mainWindow.loadURL(backendUrl).catch(err => {
       console.error("Failed to load backend:", err.message);
     });
@@ -176,16 +180,50 @@ app.whenReady().then(() => {
   });
 });
 
-app.on('window-all-closed', function () {
-  // Shutdown backend cleanly
-  const req = http.request(`http://localhost:3000/api/shutdown`, { method: 'POST' });
-  req.on('error', () => {}); // Ignore errors
-  req.end();
+function shutdownBackend() {
+  if (backendShutDown) return;
+  backendShutDown = true;
 
-  setTimeout(() => {
-    if (process.platform !== 'darwin') app.quit();
-  }, 500);
+  // 1. Graceful: ask the in-WSL node server to exit itself (process.exit in /api/shutdown)
+  try {
+    const req = http.request('http://localhost:3000/api/shutdown', { method: 'POST', timeout: 1000 });
+    req.on('error', () => {});
+    req.end();
+  } catch (_) {}
+
+  // 2. Force: kill the spawned WSL wrapper process tree
+  if (serverProc && serverProc.pid && !serverProc.killed) {
+    try {
+      if (process.platform === 'win32') {
+        exec(`taskkill /pid ${serverProc.pid} /T /F`, () => {});
+      } else {
+        serverProc.kill('SIGKILL');
+      }
+    } catch (_) {}
+  }
+
+  // 3. Belt-and-suspenders: kill any node still running the server inside WSL
+  try {
+    exec('wsl pkill -f "server/server.js"', () => {});
+  } catch (_) {}
+
+  serverProc = null;
+}
+
+app.on('window-all-closed', function () {
+  shutdownBackend();
+  if (process.platform !== 'darwin') {
+    // give the graceful HTTP/kill calls a moment, then quit
+    setTimeout(() => app.quit(), 500);
+  }
 });
+
+// Catch every other exit path (Cmd+Q, app.quit(), process signals, crashes)
+app.on('before-quit', shutdownBackend);
+app.on('will-quit', shutdownBackend);
+process.on('exit', shutdownBackend);
+process.on('SIGINT', () => { shutdownBackend(); process.exit(0); });
+process.on('SIGTERM', () => { shutdownBackend(); process.exit(0); });
 
 ipcMain.handle('moonlight:launch', async (event, { host, appName, instanceName }) => {
   console.log(`[Electron Main] Launching Moonlight for "${appName}" on ${host} (${instanceName})`);

@@ -587,6 +587,10 @@ async function handleConfigSubmit(e) {
 }
 
 // Bind Events
+function closeAwsModal() {
+  els.awsModal.style.display = 'none';
+}
+
 function bindEvents() {
   els.navItems.forEach(item => {
     item.addEventListener('click', () => switchTab(item.getAttribute('data-target')));
@@ -607,16 +611,12 @@ function bindEvents() {
     els.awsModal.style.display = 'flex';
   });
 
-  function closeAwsModal() {
-    els.awsModal.style.display = 'none';
-  }
   els.btnCloseAwsModal.addEventListener('click', closeAwsModal);
   els.awsModal.addEventListener('click', e => {
     if (e.target === els.awsModal) closeAwsModal();
   });
 
   // Instances list -> modal
-  els.btnOpenCreateModal.addEventListener('click', () => openConfigModal());
 
   // Profile Events
   els.profileForm.addEventListener('submit', handleAddProfile);

@@ -146,6 +146,51 @@ body {
   font-weight: 300;
 }
 
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: auto;
+  align-self: center;
+  flex: 0 0 auto;
+  padding: 8px 16px;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.2s, opacity 0.2s;
+}
+
+.btn:hover {
+  opacity: 0.9;
+}
+
+.btn-start {
+  background-color: var(--accent-color);
+  color: #000;
+}
+
+.btn-primary {
+  background-color: #2a6fdb;
+  color: #fff;
+}
+
+.btn-stop {
+  background-color: #333;
+  color: #fff;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 #btnOpenCreateModal {
   width: auto;
   white-space: nowrap;

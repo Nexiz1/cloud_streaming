@@ -2,7 +2,6 @@
 
 // State
 let instances = [];
-let games = [];
 let activeSession = null;
 let instancePollInterval = null;
 let sessionPollInterval = null;
@@ -14,8 +13,6 @@ const els = {
   instIp: document.getElementById('instIp'),
   instStartBtn: document.getElementById('instStartBtn'),
   instStopBtn: document.getElementById('instStopBtn'),
-  gamesGrid: document.getElementById('gamesGrid'),
-  searchInput: document.getElementById('searchInput'),
   toastContainer: document.getElementById('toastContainer'),
   loadingOverlay: document.getElementById('loadingOverlay'),
   loadingStateText: document.getElementById('loadingStateText'),
@@ -24,12 +21,25 @@ const els = {
   sessionBanner: document.getElementById('sessionBanner'),
   sessionGameTitle: document.getElementById('sessionGameTitle'),
   sessionStopBtn: document.getElementById('sessionStopBtn'),
+  instPairBtn: document.getElementById('instPairBtn'),
+  pairModal: document.getElementById('pairModal'),
+  pairOutput: document.getElementById('pairOutput'),
+  closePairModalBtn: document.getElementById('closePairModalBtn'),
+  pairStage1: document.getElementById('pairStage1'),
+  pairStage2: document.getElementById('pairStage2'),
+  nextPairStageBtn: document.getElementById('nextPairStageBtn'),
+  backPairStageBtn: document.getElementById('backPairStageBtn'),
+  submitPairBtn: document.getElementById('submitPairBtn'),
+  pairPinInput: document.getElementById('pairPinInput'),
+  startLogsModal: document.getElementById('startLogsModal'),
+  startLogsOutput: document.getElementById('startLogsOutput'),
+  closeStartLogsBtn: document.getElementById('closeStartLogsBtn'),
 };
 
 // Initialization
 async function init() {
   bindEvents();
-  await fetchGames();
+  // Load instance status first so the main screen updates fast.
   await pollInstances();
   await pollSession();
   startPolling();
@@ -103,18 +113,32 @@ function renderInstancePanel() {
     'error': 'status-error'
   };
   const displayStatus = inst.status.charAt(0).toUpperCase() + inst.status.slice(1);
-  els.instBadge.className = `status-badge ${statusClassMap[inst.status] || 'status-stopped'}`;
-  els.instBadge.textContent = displayStatus;
-
-  if (inst.status === 'running' && inst.publicIp) {
+  
+  if (inst.status === 'running') {
+    els.instIp.style.display = inst.publicIp ? 'block' : 'none';
     els.instIp.textContent = inst.publicIp;
-    els.instIp.style.display = 'block';
+    
+    if (inst.ready) {
+      els.instBadge.className = 'status-badge status-running';
+      els.instBadge.textContent = 'Running (Ready)';
+      els.instPairBtn.disabled = false;
+    } else {
+      // Running but sunshine not deployed yet
+      els.instBadge.className = 'status-badge status-starting';
+      els.instBadge.textContent = 'Configuring...';
+      els.instPairBtn.disabled = true;
+    }
   } else {
+    els.instBadge.className = `status-badge ${statusClassMap[inst.status] || 'status-stopped'}`;
+    els.instBadge.textContent = displayStatus;
     els.instIp.style.display = 'none';
+    els.instPairBtn.disabled = true;
   }
 
-  els.instStartBtn.disabled = inst.status !== 'stopped';
-  els.instStopBtn.disabled = inst.status !== 'running';
+  const isTransitioning = ['starting', 'stopping', 'pending'].includes(inst.status);
+  
+  els.instStartBtn.disabled = isTransitioning || inst.status === 'running';
+  els.instStopBtn.disabled = isTransitioning || inst.status === 'stopped' || inst.status === 'absent';
 }
 
 // Instance Actions
@@ -138,35 +162,99 @@ async function handleInstanceAction(action) {
   }
 }
 
-// Games API
-async function fetchGames() {
+async function handlePairAction() {
+  if (instances.length === 0) return;
+  const inst = instances[0];
+  
+  // Show Stage 1
+  els.pairOutput.textContent = inst.publicIp || inst.host || 'IP를 불러오는 중...';
+  els.pairStage1.style.display = 'block';
+  els.pairStage2.style.display = 'none';
+  els.pairPinInput.value = '';
+  els.pairModal.style.display = 'flex';
+}
+
+async function submitPairPin() {
+  const pin = els.pairPinInput.value.trim();
+  if (!pin || pin.length !== 4) {
+    showToast('4자리 PIN 번호를 입력해주세요.', 'error');
+    return;
+  }
+
+  const instName = instances[0].name;
   try {
-    const res = await fetch('/api/games');
-    if (!res.ok) throw new Error('Failed to fetch games');
-    games = await res.json();
-    renderGames();
+    els.submitPairBtn.disabled = true;
+    els.submitPairBtn.textContent = '페어링 진행 중...';
+    
+    const res = await fetch(`/api/instances/${instName}/pair`, { 
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pin })
+    });
+    const data = await res.json();
+    
+    if (data.ok) {
+      showToast('페어링이 성공적으로 완료되었습니다! 🎮', 'success');
+      els.pairModal.style.display = 'none';
+    } else {
+      showToast(data.error || '페어링 실패', 'error');
+    }
   } catch (err) {
-    console.error(err);
-    showToast('Failed to load games', 'error');
+    showToast(`Error: ${err.message}`, 'error');
+  } finally {
+    els.submitPairBtn.disabled = false;
+    els.submitPairBtn.textContent = '페어링 완료';
   }
 }
 
-function renderGames(filterText = '') {
-  els.gamesGrid.innerHTML = '';
-  const filtered = games.filter(g => g.title.toLowerCase().includes(filterText.toLowerCase()));
-  
-  filtered.forEach(game => {
-    const card = document.createElement('div');
-    card.className = 'game-card';
-    card.innerHTML = `
-      <div class="cover" style="background-image: url('${game.cover || ''}')"></div>
-      <div class="info">
-        <h3>${game.title}</h3>
-        <button class="play-btn" data-id="${game.id}">PLAY</button>
-      </div>
-    `;
-    els.gamesGrid.appendChild(card);
-  });
+async function handleActionStream(action) {
+  if (instances.length === 0) return;
+  const instName = instances[0].name;
+  try {
+    els.instStartBtn.disabled = true;
+    els.instStopBtn.disabled = true;
+    
+    // Show modal and reset logs
+    els.startLogsModal.style.display = 'flex';
+    
+    // Customize text based on action
+    const actionText = action === 'start' ? '시작' : '종료';
+    const actionDesc = action === 'start' ? '시작하고' : '종료하고';
+    els.startLogsModal.querySelector('h2').textContent = `인스턴스 ${actionText} 중...`;
+    els.startLogsModal.querySelector('p').textContent = `CloudyPad를 통해 인스턴스를 ${actionDesc} 있습니다. 완료될 때까지 기다려주세요.`;
+    
+    els.startLogsOutput.textContent = `${action === 'start' ? 'Starting' : 'Stopping'} instance ${instName}...\n`;
+    els.closeStartLogsBtn.style.display = 'none';
+
+    const res = await fetch(`/api/instances/${instName}/${action}`, { method: 'POST' });
+    if (!res.body) {
+      throw new Error('ReadableStream not supported in this browser.');
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder('utf-8');
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      let text = decoder.decode(value, { stream: true });
+      
+      // Remove ANSI escape codes (colors, formatting)
+      text = text.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '');
+      
+      els.startLogsOutput.textContent += text;
+      // Auto-scroll to bottom
+      els.startLogsOutput.scrollTop = els.startLogsOutput.scrollHeight;
+    }
+
+    showToast(`${action} process completed`, 'success');
+  } catch (err) {
+    els.startLogsOutput.textContent += `\nError: ${err.message}`;
+    showToast(`Error: ${err.message}`, 'error');
+  } finally {
+    els.closeStartLogsBtn.style.display = 'inline-block';
+    pollInstances();
+  }
 }
 
 // Sessions API
@@ -212,35 +300,6 @@ function updateSessionUI() {
     }
   } else {
     els.sessionBanner.style.display = 'none';
-  }
-}
-
-async function startGameSession(gameId) {
-  if (instances.length === 0 || instances[0].status !== 'running') {
-    showToast('인스턴스를 먼저 시작해주세요 (Instance must be running)', 'error');
-    return;
-  }
-
-  try {
-    showLoadingOverlay('게이밍 PC 준비 중...', 'allocating');
-    const res = await fetch('/api/session/start', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ gameId })
-    });
-    
-    const data = await res.json();
-    if (!data.ok) {
-      hideLoadingOverlay();
-      showToast('Failed to start session', 'error');
-      return;
-    }
-    
-    // Poll immediately
-    pollSession();
-  } catch (err) {
-    hideLoadingOverlay();
-    showToast(`Error: ${err.message}`, 'error');
   }
 }
 
@@ -292,18 +351,35 @@ function hideLoadingOverlay() {
 
 // Events Binding
 function bindEvents() {
-  els.instStartBtn.addEventListener('click', () => handleInstanceAction('start'));
-  els.instStopBtn.addEventListener('click', () => handleInstanceAction('stop'));
+  els.instStartBtn.addEventListener('click', () => handleActionStream('start'));
+  els.instStopBtn.addEventListener('click', () => handleActionStream('stop'));
+  els.instPairBtn.addEventListener('click', handlePairAction);
   
-  els.searchInput.addEventListener('input', (e) => {
-    renderGames(e.target.value);
+  els.closePairModalBtn.addEventListener('click', () => {
+    els.pairModal.style.display = 'none';
   });
 
-  els.gamesGrid.addEventListener('click', (e) => {
-    if (e.target.classList.contains('play-btn')) {
-      const gameId = e.target.getAttribute('data-id');
-      startGameSession(gameId);
+  els.nextPairStageBtn.addEventListener('click', () => {
+    els.pairStage1.style.display = 'none';
+    els.pairStage2.style.display = 'block';
+    els.pairPinInput.focus();
+  });
+
+  els.backPairStageBtn.addEventListener('click', () => {
+    els.pairStage2.style.display = 'none';
+    els.pairStage1.style.display = 'block';
+  });
+
+  els.submitPairBtn.addEventListener('click', submitPairPin);
+  
+  els.pairPinInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      submitPairPin();
     }
+  });
+
+  els.closeStartLogsBtn.addEventListener('click', () => {
+    els.startLogsModal.style.display = 'none';
   });
 
   els.cancelSessionBtn.addEventListener('click', () => {

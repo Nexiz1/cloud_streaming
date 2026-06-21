@@ -1,5 +1,20 @@
 node_modules/
 .env
-data/profiles.json
 .DS_Store
 *.log
+
+# Sensitive runtime data (AWS credentials, profiles)
+data/profiles.json
+
+# Private keys / credentials — never commit
+*.pem
+*.key
+id_rsa*
+id_ed25519*
+
+# Dev scratch & ad-hoc test files
+scratch/
+test_ssh.js
+
+# Local instance status cache
+*cache*.json

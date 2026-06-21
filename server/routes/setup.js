@@ -230,9 +230,18 @@ router.delete('/aws-profiles/:name', (req, res) => {
     profiles.splice(targetIndex, 1);
 
     // If active was deleted, make the first one active
-    if (wasActive && profiles.length > 0) {
-      profiles[0].isActive = true;
-      applyAwsCredentialToSystem(profiles[0]);
+    if (wasActive) {
+      if (profiles.length > 0) {
+        profiles[0].isActive = true;
+        applyAwsCredentialToSystem(profiles[0]);
+      } else {
+        // If no profiles left, clear the system credentials
+        const awsDir = require('node:path').join(require('node:os').homedir(), '.aws');
+        const credPath = require('node:path').join(awsDir, 'credentials');
+        if (require('node:fs').existsSync(credPath)) {
+          require('node:fs').unlinkSync(credPath);
+        }
+      }
     }
 
     saveAwsProfiles(profiles);

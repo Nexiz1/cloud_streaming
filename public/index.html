@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CLOUDPLAY</title>
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/style.css?v=2">
 </head>
 <body>
   <!-- Toast Container -->
@@ -16,6 +16,46 @@
     <h2 id="loadingStateText">게이밍 PC 준비 중...</h2>
     <p id="loadingDetailText">allocating</p>
     <button id="cancelSessionBtn" class="cancel-btn">취소</button>
+  </div>
+
+  <!-- Pairing Modal -->
+  <div id="pairModal" class="loading-overlay" style="display: none; justify-content: center; align-items: center; z-index: 9999;">
+    <div class="modal-card" style="width: 80%; max-width: 600px;">
+      <h2 style="margin-top: 0;">Moonlight 매뉴얼 페어링</h2>
+      
+      <div id="pairStage1">
+        <p>1. 로컬 PC에 설치된 <b>Moonlight 앱</b>을 실행하세요.</p>
+        <p>2. 우측 상단의 <b>컴퓨터 추가(+)</b> 버튼을 누르고 아래의 IP 주소를 입력하세요.</p>
+        <pre id="pairOutput" class="terminal-logs" style="user-select: all; padding: 15px; margin: 15px 0; background: #1e1e1e; color: #00ff00; border-radius: 5px; text-align: center; font-size: 1.2em; font-family: monospace;"></pre>
+        <p>3. 새로 생긴 모니터 아이콘(자물쇠 모양)을 클릭하세요.</p>
+        <div style="text-align: right; margin-top: 15px;">
+          <button id="closePairModalBtn" class="btn btn-stop" style="margin-right: 10px;">취소</button>
+          <button id="nextPairStageBtn" class="btn btn-primary">다음 단계 ➔</button>
+        </div>
+      </div>
+
+      <div id="pairStage2" style="display: none;">
+        <p>4. Moonlight 화면에 나타난 <b>4자리 PIN 번호</b>를 아래에 입력해주세요.</p>
+        <input type="text" id="pairPinInput" placeholder="예: 1234" maxlength="4" style="width: 100%; padding: 10px; margin: 15px 0; background: #2a2a2a; border: 1px solid #444; color: white; border-radius: 4px; font-size: 1.2em; text-align: center;">
+        <div style="text-align: right; margin-top: 15px;">
+          <button id="backPairStageBtn" class="btn btn-stop" style="margin-right: 10px;">⬅ 이전 단계</button>
+          <button id="submitPairBtn" class="btn btn-start">페어링 완료</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Start Logs Modal -->
+  <div id="startLogsModal" class="loading-overlay" style="display: none; justify-content: center; align-items: center; z-index: 9999;">
+    <div class="modal-card" style="width: 80%; max-width: 800px;">
+      <h2 style="margin-top: 0;">인스턴스 시작 중...</h2>
+      <p>CloudyPad를 통해 인스턴스를 시작하고 있습니다. 완료될 때까지 기다려주세요.</p>
+      <pre id="startLogsOutput" class="terminal-logs" style="padding: 15px; margin: 15px 0; background: #1e1e1e; color: #00ff00; border-radius: 5px; overflow-x: auto; white-space: pre-wrap; font-family: monospace; height: 300px; overflow-y: auto;"></pre>
+      <div style="text-align: right; margin-top: 15px;">
+        <button id="closeStartLogsBtn" class="btn btn-primary" style="display: none;">닫기</button>
+      </div>
+    </div>
   </div>
 
   <div class="app-container">
@@ -31,6 +71,7 @@
         <div class="instance-actions">
           <button id="instStartBtn" class="btn btn-start" disabled>Start</button>
           <button id="instStopBtn" class="btn btn-stop" disabled>Stop</button>
+          <button id="instPairBtn" class="btn btn-primary" style="margin-top: 5px; width: 100%;" disabled>Pair Device</button>
         </div>
       </div>
     </aside>
@@ -51,17 +92,9 @@
         </div>
       </header>
 
-      <!-- Game Grid Area -->
-      <div class="grid-controls">
-        <input type="text" id="searchInput" class="search-input" placeholder="Search games...">
-      </div>
-      
-      <div id="gamesGrid" class="library-grid">
-        <!-- Game cards injected here by app.js -->
-      </div>
     </main>
   </div>
 
-  <script src="js/app.js"></script>
+  <script src="js/app.js?v=3"></script>
 </body>
 </html>
