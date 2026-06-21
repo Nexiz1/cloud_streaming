@@ -12,8 +12,12 @@ const els = {
   cloudypadStatus: document.getElementById('cloudypadStatus'),
   cloudypadHelp: document.getElementById('cloudypadHelp'),
   refreshStatusBtn: document.getElementById('refreshStatusBtn'),
-  awsStatus: document.getElementById('awsStatus'),
+  btnOpenAwsModal: document.getElementById('btnOpenAwsModal'),
+  awsModal: document.getElementById('awsModal'),
+  btnCloseAwsModal: document.getElementById('btnCloseAwsModal'),
+  awsTableBody: document.getElementById('awsTableBody'),
   awsAuthForm: document.getElementById('awsAuthForm'),
+  awsProfileName: document.getElementById('awsProfileName'),
   accessKeyId: document.getElementById('accessKeyId'),
   secretAccessKey: document.getElementById('secretAccessKey'),
   region: document.getElementById('region'),
@@ -96,7 +100,8 @@ async function init() {
   await Promise.all([
     loadStatus(),
     loadInstances(),
-    loadProfiles()
+    loadProfiles(),
+    loadAwsProfiles()
   ]);
 }
 
@@ -135,17 +140,69 @@ async function loadStatus() {
       els.cloudypadStatus.style.color = 'var(--error-color)';
       els.cloudypadHelp.style.display = 'block';
     }
-
-    if (data.awsAuth) {
-      const arn = data.details?.awsArn || 'Unknown ARN';
-      els.awsStatus.innerHTML = `✅ Connected (${arn})`;
-      els.awsStatus.style.color = 'var(--success-color)';
-    } else {
-      els.awsStatus.innerHTML = `❌ Not Connected`;
-      els.awsStatus.style.color = 'var(--error-color)';
-    }
   } catch (err) {
     showToast('Failed to load prerequisite status', 'error');
+  }
+}
+
+async function loadAwsProfiles() {
+  try {
+    const res = await fetch('/api/setup/aws-profiles');
+    const profiles = await res.json();
+    els.awsTableBody.innerHTML = '';
+    
+    if (profiles.length === 0) {
+      els.awsTableBody.innerHTML = '<tr><td colspan="5" style="text-align: center;">No credentials found. Add one!</td></tr>';
+      return;
+    }
+
+    profiles.forEach(p => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${p.profileName}</td>
+        <td>${p.accessKeyId.substring(0, 4)}...</td>
+        <td>${p.region}</td>
+        <td>${p.isActive ? '<span class="status-badge running">Active</span>' : '<span class="status-badge stopped">Inactive</span>'}</td>
+        <td class="action-buttons">
+          <button class="btn btn-sm btn-start" onclick="setAwsProfileActive('${p.profileName}')" ${p.isActive ? 'disabled' : ''}>Set Active</button>
+          <button class="btn btn-sm btn-destroy" onclick="deleteAwsProfile('${p.profileName}')">Delete</button>
+        </td>
+      `;
+      els.awsTableBody.appendChild(tr);
+    });
+  } catch (err) {
+    els.awsTableBody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: red;">Failed to load credentials</td></tr>';
+  }
+}
+
+async function setAwsProfileActive(name) {
+  try {
+    const res = await fetch(`/api/setup/aws-profiles/${name}/active`, { method: 'POST' });
+    const data = await res.json();
+    if (data.ok) {
+      showToast('AWS Credential Activated', 'success');
+      loadAwsProfiles();
+    } else {
+      showToast('Error: ' + data.error, 'error');
+    }
+  } catch (err) {
+    showToast('Failed to set active', 'error');
+  }
+}
+
+async function deleteAwsProfile(name) {
+  if (!confirm(`Are you sure you want to delete credential '${name}'?`)) return;
+  try {
+    const res = await fetch(`/api/setup/aws-profiles/${name}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (data.ok) {
+      showToast('AWS Credential Deleted', 'success');
+      loadAwsProfiles();
+    } else {
+      showToast('Error: ' + data.error, 'error');
+    }
+  } catch (err) {
+    showToast('Failed to delete', 'error');
   }
 }
 
@@ -155,6 +212,7 @@ async function handleAwsSubmit(e) {
   els.awsInlineSuccess.style.display = 'none';
   
   const payload = {
+    profileName: els.awsProfileName.value.trim(),
     accessKeyId: els.accessKeyId.value.trim(),
     secretAccessKey: els.secretAccessKey.value.trim(),
     region: els.region.value,
@@ -164,9 +222,9 @@ async function handleAwsSubmit(e) {
   try {
     const submitBtn = els.awsAuthForm.querySelector('button[type="submit"]');
     submitBtn.disabled = true;
-    submitBtn.textContent = 'Testing...';
+    submitBtn.textContent = 'Testing & Adding...';
 
-    const res = await fetch('/api/setup/aws-auth', {
+    const res = await fetch('/api/setup/aws-profiles/add', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
@@ -175,16 +233,17 @@ async function handleAwsSubmit(e) {
     const data = await res.json();
     
     submitBtn.disabled = false;
-    submitBtn.textContent = '연결 테스트 & 저장 (Test & Save)';
+    submitBtn.textContent = 'Verify & Add';
 
     if (data.ok) {
-      els.awsInlineSuccess.textContent = `Success! Connected as: ${data.identity || 'AWS Account'}`;
+      els.awsInlineSuccess.innerHTML = `✅ ${data.profile.arn} 등록 성공!`;
       els.awsInlineSuccess.style.display = 'block';
-      els.secretAccessKey.value = ''; // clear for security
-      showToast('AWS credentials saved successfully', 'success');
-      loadStatus();
+      setTimeout(() => {
+        closeAwsModal();
+        loadAwsProfiles();
+      }, 1000);
     } else {
-      els.awsInlineError.textContent = `Error: ${data.error || 'Failed to authenticate'}`;
+      els.awsInlineError.innerHTML = '❌ ' + (data.error || 'Verification failed');
       els.awsInlineError.style.display = 'block';
     }
   } catch (err) {
@@ -529,20 +588,35 @@ async function handleConfigSubmit(e) {
 
 // Bind Events
 function bindEvents() {
-  // Nav Links
   els.navItems.forEach(item => {
-    item.addEventListener('click', () => {
-      switchTab(item.getAttribute('data-target'));
-    });
+    item.addEventListener('click', () => switchTab(item.getAttribute('data-target')));
   });
 
   els.refreshStatusBtn.addEventListener('click', () => {
     loadStatus();
     loadInstances();
   });
-  
   els.awsAuthForm.addEventListener('submit', handleAwsSubmit);
   els.instancesTableBody.addEventListener('click', handleTableAction);
+
+  // AWS Modal
+  els.btnOpenAwsModal.addEventListener('click', () => {
+    els.awsAuthForm.reset();
+    els.awsInlineError.style.display = 'none';
+    els.awsInlineSuccess.style.display = 'none';
+    els.awsModal.style.display = 'flex';
+  });
+
+  function closeAwsModal() {
+    els.awsModal.style.display = 'none';
+  }
+  els.btnCloseAwsModal.addEventListener('click', closeAwsModal);
+  els.awsModal.addEventListener('click', e => {
+    if (e.target === els.awsModal) closeAwsModal();
+  });
+
+  // Instances list -> modal
+  els.btnOpenCreateModal.addEventListener('click', () => openConfigModal());
 
   // Profile Events
   els.profileForm.addEventListener('submit', handleAddProfile);

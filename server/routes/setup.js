@@ -112,42 +112,133 @@ router.post('/profiles', (req, res) => {
   }
 });
 
-router.post('/aws-auth', async (req, res) => {
-  const { accessKeyId, secretAccessKey, region, sessionToken } = req.body;
-  
-  if (!accessKeyId || !secretAccessKey || !region) {
-    return res.status(400).json({ ok: false, error: "accessKeyId, secretAccessKey, and region are required" });
+const awsCredsPath = path.join(cloudypadDir, 'aws-credentials.json');
+
+function getAwsProfiles() {
+  if (!fs.existsSync(awsCredsPath)) return [];
+  try {
+    return JSON.parse(fs.readFileSync(awsCredsPath, 'utf8'));
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveAwsProfiles(profiles) {
+  if (!fs.existsSync(cloudypadDir)) {
+    fs.mkdirSync(cloudypadDir, { recursive: true });
+  }
+  fs.writeFileSync(awsCredsPath, JSON.stringify(profiles, null, 2), 'utf8');
+}
+
+function applyAwsCredentialToSystem(cred) {
+  const awsDir = path.join(os.homedir(), '.aws');
+  if (!fs.existsSync(awsDir)) {
+    fs.mkdirSync(awsDir, { recursive: true });
+  }
+  const credPath = path.join(awsDir, 'credentials');
+  const configPath = path.join(awsDir, 'config');
+
+  let credContent = `[default]\naws_access_key_id = ${cred.accessKeyId}\naws_secret_access_key = ${cred.secretAccessKey}\n`;
+  if (cred.sessionToken) {
+    credContent += `aws_session_token = ${cred.sessionToken}\n`;
+  }
+  const configContent = `[default]\nregion = ${cred.region}\n`;
+
+  fs.writeFileSync(credPath, credContent, { mode: 0o600 });
+  fs.writeFileSync(configPath, configContent, { mode: 0o600 });
+}
+
+router.get('/aws-profiles', (req, res) => {
+  try {
+    const profiles = getAwsProfiles().map(p => ({
+      profileName: p.profileName,
+      accessKeyId: p.accessKeyId,
+      region: p.region,
+      arn: p.arn,
+      isActive: p.isActive
+    }));
+    res.json(profiles);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/aws-profiles/add', async (req, res) => {
+  const { profileName, accessKeyId, secretAccessKey, region, sessionToken } = req.body;
+  if (!profileName || !accessKeyId || !secretAccessKey || !region) {
+    return res.status(400).json({ ok: false, error: "profileName, accessKeyId, secretAccessKey, region are required" });
   }
 
   try {
-    // 1. Verify before saving
     const verifyRes = await verifyCredentials({ accessKeyId, secretAccessKey, region, sessionToken });
     if (!verifyRes.ok) {
       return res.status(401).json({ ok: false, error: `AWS Verification failed: ${verifyRes.error}` });
     }
 
-    // 2. Save credentials since verification succeeded
-    const awsDir = path.join(os.homedir(), '.aws');
-    if (!fs.existsSync(awsDir)) {
-      fs.mkdirSync(awsDir, { recursive: true });
+    const profiles = getAwsProfiles();
+    if (profiles.find(p => p.profileName === profileName)) {
+      return res.status(400).json({ ok: false, error: "Profile name already exists" });
     }
 
-    const credPath = path.join(awsDir, 'credentials');
-    const configPath = path.join(awsDir, 'config');
+    const isFirst = profiles.length === 0;
+    const newCred = {
+      profileName,
+      accessKeyId,
+      secretAccessKey,
+      region,
+      sessionToken: sessionToken || '',
+      arn: verifyRes.identity.Arn || 'Unknown ARN',
+      isActive: isFirst
+    };
 
-    let credContent = `[default]\naws_access_key_id = ${accessKeyId}\naws_secret_access_key = ${secretAccessKey}\n`;
-    if (sessionToken) {
-      credContent += `aws_session_token = ${sessionToken}\n`;
+    profiles.push(newCred);
+    saveAwsProfiles(profiles);
+
+    if (isFirst) {
+      applyAwsCredentialToSystem(newCred);
     }
 
-    const configContent = `[default]\nregion = ${region}\n`;
-
-    fs.writeFileSync(credPath, credContent, { mode: 0o600 });
-    fs.writeFileSync(configPath, configContent, { mode: 0o600 });
-
-    res.json({ ok: true, identity: verifyRes.identity });
+    res.json({ ok: true, profile: { profileName, accessKeyId, region, arn: newCred.arn, isActive: isFirst } });
   } catch (err) {
-    res.status(500).json({ ok: false, error: `Internal Server Error: ${sanitize(err.message)}` });
+    res.status(500).json({ ok: false, error: sanitize(err.message) });
+  }
+});
+
+router.post('/aws-profiles/:name/active', (req, res) => {
+  try {
+    const profiles = getAwsProfiles();
+    const target = profiles.find(p => p.profileName === req.params.name);
+    if (!target) return res.status(404).json({ ok: false, error: "Profile not found" });
+
+    profiles.forEach(p => p.isActive = (p.profileName === req.params.name));
+    saveAwsProfiles(profiles);
+    applyAwsCredentialToSystem(target);
+
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: sanitize(err.message) });
+  }
+});
+
+router.delete('/aws-profiles/:name', (req, res) => {
+  try {
+    let profiles = getAwsProfiles();
+    const targetIndex = profiles.findIndex(p => p.profileName === req.params.name);
+    if (targetIndex === -1) return res.status(404).json({ ok: false, error: "Profile not found" });
+
+    const wasActive = profiles[targetIndex].isActive;
+    profiles.splice(targetIndex, 1);
+
+    // If active was deleted, make the first one active
+    if (wasActive && profiles.length > 0) {
+      profiles[0].isActive = true;
+      applyAwsCredentialToSystem(profiles[0]);
+    }
+
+    saveAwsProfiles(profiles);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: sanitize(err.message) });
   }
 });
 

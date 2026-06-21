@@ -148,34 +148,25 @@
         </div>
 
         <div class="card-panel">
-          <h3>AWS Credentials</h3>
-          <div id="awsStatus" class="status-indicator">Loading...</div>
-          <form id="awsAuthForm" style="margin-top: 20px;">
-            <div class="form-group">
-              <label for="accessKeyId">Access Key ID</label>
-              <input type="text" id="accessKeyId" required>
-            </div>
-            <div class="form-group">
-              <label for="secretAccessKey">Secret Access Key</label>
-              <input type="password" id="secretAccessKey" placeholder="현재 설정됨 (Leave blank to keep current)">
-            </div>
-            <div class="form-group">
-              <label for="region">Region</label>
-              <select id="region">
-                <option value="ap-northeast-2">ap-northeast-2 (Seoul)</option>
-                <option value="ap-northeast-1">ap-northeast-1 (Tokyo)</option>
-                <option value="us-west-2">us-west-2 (Oregon)</option>
-                <option value="us-east-1">us-east-1 (N. Virginia)</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label for="sessionToken">Session Token (Optional)</label>
-              <input type="text" id="sessionToken">
-            </div>
-            <div id="awsInlineError" class="inline-error"></div>
-            <div id="awsInlineSuccess" class="inline-success"></div>
-            <button type="submit" class="btn btn-primary" style="margin-top: 15px; width: 100%;">연결 테스트 & 저장 (Test & Save)</button>
-          </form>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h3 style="margin: 0;">AWS Credentials</h3>
+            <button id="btnOpenAwsModal" class="btn btn-start" style="width: auto;">+ Add Credential</button>
+          </div>
+          
+          <table class="instances-table">
+            <thead>
+              <tr>
+                <th>Profile Name</th>
+                <th>Access Key</th>
+                <th>Region</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="awsTableBody">
+              <tr><td colspan="5">Loading...</td></tr>
+            </tbody>
+          </table>
         </div>
       </section>
     </main>
@@ -263,6 +254,46 @@
       <h2 style="margin-top: 0; color: var(--accent-color);">Deployment Logs</h2>
       <pre id="creationLogs" class="terminal-logs"></pre>
       <button id="closeLogsBtn" class="btn btn-primary" style="margin-top: 15px; float: right;" disabled>Close</button>
+    </div>
+  </div>
+
+  <!-- AWS Credential Modal -->
+  <div id="awsModal" class="loading-overlay" style="display: none; justify-content: center; align-items: center;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2>Add AWS Credential</h2>
+        <button id="btnCloseAwsModal" class="btn-close">&times;</button>
+      </div>
+      <form id="awsAuthForm" style="margin-top: 15px;">
+        <div class="form-group">
+          <label for="awsProfileName">Profile Name</label>
+          <input type="text" id="awsProfileName" placeholder="e.g. personal-account" required>
+        </div>
+        <div class="form-group">
+          <label for="accessKeyId">Access Key ID</label>
+          <input type="text" id="accessKeyId" required>
+        </div>
+        <div class="form-group">
+          <label for="secretAccessKey">Secret Access Key</label>
+          <input type="password" id="secretAccessKey" required>
+        </div>
+        <div class="form-group">
+          <label for="region">Region</label>
+          <select id="region">
+            <option value="ap-northeast-2">ap-northeast-2 (Seoul)</option>
+            <option value="ap-northeast-1">ap-northeast-1 (Tokyo)</option>
+            <option value="us-west-2">us-west-2 (Oregon)</option>
+            <option value="us-east-1">us-east-1 (N. Virginia)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="sessionToken">Session Token (Optional)</label>
+          <input type="text" id="sessionToken">
+        </div>
+        <div id="awsInlineError" class="inline-error"></div>
+        <div id="awsInlineSuccess" class="inline-success"></div>
+        <button type="submit" class="btn btn-primary" style="margin-top: 15px; width: 100%;">Verify & Add</button>
+      </form>
     </div>
   </div>
 
