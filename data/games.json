@@ -1,0 +1,7 @@
+[
+  { "id": "stardew-valley",  "title": "Stardew Valley",   "genres": ["Simulation","RPG","Indie"], "launchers": ["Steam"], "steamAppId": "413150",  "cover": "/assets/covers/stardew-valley.jpg",  "featured": true },
+  { "id": "vampire-survivors","title": "Vampire Survivors","genres": ["Action","Roguelite","Indie"], "launchers": ["Steam"], "steamAppId": "1794680", "cover": "/assets/covers/vampire-survivors.jpg", "featured": true },
+  { "id": "terraria",        "title": "Terraria",         "genres": ["Sandbox","Adventure","Indie"], "launchers": ["Steam"], "steamAppId": "105600",  "cover": "/assets/covers/terraria.jpg",        "featured": false },
+  { "id": "celeste",         "title": "Celeste",          "genres": ["Platformer","Indie"],        "launchers": ["Steam"], "steamAppId": "504230",  "cover": "/assets/covers/celeste.jpg",         "featured": false },
+  { "id": "slay-the-spire",  "title": "Slay the Spire",   "genres": ["Card","Roguelite","Strategy"], "launchers": ["Steam"], "steamAppId": "646570",  "cover": "/assets/covers/slay-the-spire.jpg",  "featured": false }
+]

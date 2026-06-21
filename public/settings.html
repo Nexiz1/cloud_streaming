@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - CLOUDPLAY</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- Toast Container -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <div class="dashboard-layout">
+    <!-- Sidebar -->
+    <nav class="sidebar">
+      <div class="sidebar-header">
+        <h2>CLOUDPLAY</h2>
+      </div>
+      <ul class="nav-links">
+        <li class="nav-item active" data-target="instances-tab">🖥️ Instances</li>
+        <li class="nav-item" data-target="profiles-tab">📋 Profiles</li>
+        <li class="nav-item" data-target="settings-tab">⚙️ AWS Config</li>
+      </ul>
+      <div class="sidebar-footer">
+        <a href="index.html" class="back-link">← Back to Home</a>
+      </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="content-area">
+      
+      <!-- TAB 1: Instances (Dashboard) -->
+      <section id="instances-tab" class="tab-content active">
+        <div class="tab-header">
+          <h2>Instances</h2>
+          <button id="btnOpenCreateModal" class="btn btn-start">+ Deploy New Instance</button>
+        </div>
+        <div class="card-panel">
+          <table class="instances-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Region</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="instancesTableBody">
+              <tr><td colspan="5">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- TAB 2: Profiles -->
+      <section id="profiles-tab" class="tab-content" style="display: none;">
+        <div class="tab-header">
+          <h2>Deployment Profiles</h2>
+        </div>
+        <div class="card-panel">
+          <table class="instances-table" style="margin-bottom: 20px;">
+            <thead>
+              <tr>
+                <th>Profile Name</th>
+                <th>Type</th>
+                <th>Disk (GB)</th>
+                <th>Limit ($)</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="profilesTableBody">
+              <tr><td colspan="5">Loading...</td></tr>
+            </tbody>
+          </table>
+          
+          <form id="profileForm" style="border-top: 1px solid var(--border-color); padding-top: 20px;">
+            <h3 style="margin-top: 0;">Add New Profile</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+              <div class="form-group">
+                <label>Profile Name</label>
+                <input type="text" id="profName" placeholder="e.g. High-End Gaming" required>
+              </div>
+              <div class="form-group">
+                <label>Instance Type</label>
+                <input type="text" id="profType" value="g4dn.xlarge" required>
+              </div>
+              <div class="form-group">
+                <label>Region</label>
+                <select id="profRegion">
+                  <option value="ap-northeast-2">ap-northeast-2 (Seoul)</option>
+                  <option value="us-west-2">us-west-2 (Oregon)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Availability Zone (Optional)</label>
+                <input type="text" id="profZone" placeholder="e.g. ap-northeast-2a">
+              </div>
+              <div class="form-group">
+                <label>Root Disk Size (GB)</label>
+                <input type="number" id="profRootDisk" value="30" required>
+              </div>
+              <div class="form-group">
+                <label>Data Disk Size (GB)</label>
+                <input type="number" id="profDisk" value="100" required>
+              </div>
+              <div class="form-group">
+                <label>Cost Limit ($)</label>
+                <input type="number" id="profCost" value="40" required>
+              </div>
+              <div class="form-group">
+                <label>Auto-Stop Timeout (sec)</label>
+                <input type="number" id="profTimeout" value="600" required>
+              </div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-top: 15px;">
+              <div class="form-group" style="display: flex; align-items: center; gap: 10px;">
+                <input type="checkbox" id="profSpot" style="width: auto;">
+                <label style="margin: 0;">Use Spot Instances</label>
+              </div>
+              <div class="form-group" style="display: flex; align-items: center; gap: 10px;">
+                <input type="checkbox" id="profAutoStop" checked style="width: auto;">
+                <label style="margin: 0;">Enable Auto-Stop</label>
+              </div>
+              <div class="form-group" style="display: flex; align-items: center; gap: 10px;">
+                <input type="checkbox" id="profVpc" checked style="width: auto;">
+                <label style="margin: 0;">Dedicated VPC</label>
+              </div>
+            </div>
+            <button type="submit" class="btn btn-primary" style="margin-top: 15px;">Save Profile</button>
+          </form>
+        </div>
+      </section>
+
+      <!-- TAB 3: Settings -->
+      <section id="settings-tab" class="tab-content" style="display: none;">
+        <div class="tab-header">
+          <h2>AWS Configuration</h2>
+        </div>
+        
+        <div class="card-panel" style="margin-bottom: 20px;">
+          <h3>CloudyPad CLI Status</h3>
+          <div id="cloudypadStatus" class="status-indicator">Loading...</div>
+          <p id="cloudypadHelp" style="display: none; color: var(--text-muted);">
+            CloudyPad CLI가 설치되지 않았습니다. <a href="https://cloudypad.io" target="_blank" style="color: var(--accent-color);">설치 가이드 →</a>
+          </p>
+          <button id="refreshStatusBtn" class="btn btn-primary" style="margin-top: 10px;">상태 새로고침 (Refresh)</button>
+        </div>
+
+        <div class="card-panel">
+          <h3>AWS Credentials</h3>
+          <div id="awsStatus" class="status-indicator">Loading...</div>
+          <form id="awsAuthForm" style="margin-top: 20px;">
+            <div class="form-group">
+              <label for="accessKeyId">Access Key ID</label>
+              <input type="text" id="accessKeyId" required>
+            </div>
+            <div class="form-group">
+              <label for="secretAccessKey">Secret Access Key</label>
+              <input type="password" id="secretAccessKey" placeholder="현재 설정됨 (Leave blank to keep current)">
+            </div>
+            <div class="form-group">
+              <label for="region">Region</label>
+              <select id="region">
+                <option value="ap-northeast-2">ap-northeast-2 (Seoul)</option>
+                <option value="ap-northeast-1">ap-northeast-1 (Tokyo)</option>
+                <option value="us-west-2">us-west-2 (Oregon)</option>
+                <option value="us-east-1">us-east-1 (N. Virginia)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="sessionToken">Session Token (Optional)</label>
+              <input type="text" id="sessionToken">
+            </div>
+            <div id="awsInlineError" class="inline-error"></div>
+            <div id="awsInlineSuccess" class="inline-success"></div>
+            <button type="submit" class="btn btn-primary" style="margin-top: 15px; width: 100%;">연결 테스트 & 저장 (Test & Save)</button>
+          </form>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Unified Configuration Modal (Create & Edit) -->
+  <div id="configModal" class="loading-overlay" style="display: none; justify-content: center; align-items: center;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 id="configModalTitle">Deploy Instance</h2>
+        <button id="btnCloseConfigModal" class="btn-close">&times;</button>
+      </div>
+      <form id="createInstanceForm" style="margin-top: 15px;">
+        <!-- Hidden input to track if we are Editing or Creating -->
+        <input type="hidden" id="configMode" value="create"> 
+        
+        <div class="form-group" id="profileSelectorGroup">
+          <label>Load from Profile</label>
+          <select id="createProfileSelect">
+            <option value="" disabled selected>Select a profile to autofill...</option>
+          </select>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+          <div class="form-group">
+            <label>Instance Name</label>
+            <input type="text" id="createInstName" placeholder="e.g. gfn-rig" required>
+          </div>
+          <div class="form-group">
+            <label>Instance Type</label>
+            <input type="text" id="configInstType" value="g4dn.xlarge" required>
+          </div>
+          <div class="form-group">
+            <label>Region</label>
+            <select id="configRegion">
+              <option value="ap-northeast-2">ap-northeast-2 (Seoul)</option>
+              <option value="us-west-2">us-west-2 (Oregon)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Zone (Optional)</label>
+            <input type="text" id="configZone" placeholder="e.g. ap-northeast-2a">
+          </div>
+          <div class="form-group">
+            <label>Root Disk (GB)</label>
+            <input type="number" id="configRootDisk" value="30" required>
+          </div>
+          <div class="form-group">
+            <label>Data Disk (GB)</label>
+            <input type="number" id="configDataDisk" value="100" required>
+          </div>
+          <div class="form-group">
+            <label>Auto-Stop Timeout (s)</label>
+            <input type="number" id="configTimeout" value="600" required>
+          </div>
+          <div class="form-group">
+            <label>Cost Limit ($)</label>
+            <input type="number" id="configCost" value="40" required>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-top: 15px;">
+          <div class="form-group" style="display: flex; align-items: center; gap: 10px;">
+            <input type="checkbox" id="configSpot" style="width: auto;">
+            <label style="margin: 0;">Spot Instances</label>
+          </div>
+          <div class="form-group" style="display: flex; align-items: center; gap: 10px;">
+            <input type="checkbox" id="configAutoStop" checked style="width: auto;">
+            <label style="margin: 0;">Auto-Stop</label>
+          </div>
+          <div class="form-group" id="configVpcGroup" style="display: flex; align-items: center; gap: 10px;">
+            <input type="checkbox" id="configVpc" checked style="width: auto;">
+            <label style="margin: 0;">Dedicated VPC</label>
+          </div>
+        </div>
+
+        <button type="submit" id="configSubmitBtn" class="btn btn-start" style="margin-top: 20px; width: 100%;">Deploy</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Creation Logs Modal -->
+  <div id="logsModal" class="loading-overlay" style="display: none; justify-content: center; align-items: center;">
+    <div class="modal-card" style="width: 80%; max-width: 800px;">
+      <h2 style="margin-top: 0; color: var(--accent-color);">Deployment Logs</h2>
+      <pre id="creationLogs" class="terminal-logs"></pre>
+      <button id="closeLogsBtn" class="btn btn-primary" style="margin-top: 15px; float: right;" disabled>Close</button>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/ansi_up@5.1.0/ansi_up.min.js"></script>
+  <script src="js/settings.js"></script>
+</body>
+</html>

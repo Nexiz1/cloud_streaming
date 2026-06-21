@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CLOUDPLAY</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- Toast Container -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+    <div class="spinner"></div>
+    <h2 id="loadingStateText">게이밍 PC 준비 중...</h2>
+    <p id="loadingDetailText">allocating</p>
+    <button id="cancelSessionBtn" class="cancel-btn">취소</button>
+  </div>
+
+  <div class="app-container">
+    <!-- Sidebar / Left Panel -->
+    <aside class="sidebar">
+      <h2>Instance Status</h2>
+      <div id="instancePanel" class="instance-card">
+        <div class="instance-header">
+          <h3 id="instName">-</h3>
+          <span id="instBadge" class="status-badge status-stopped">Offline</span>
+        </div>
+        <div id="instIp" class="instance-ip" style="display: none;">-</div>
+        <div class="instance-actions">
+          <button id="instStartBtn" class="btn btn-start" disabled>Start</button>
+          <button id="instStopBtn" class="btn btn-stop" disabled>Stop</button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Session Banner (Hidden by default) -->
+      <div id="sessionBanner" class="session-banner" style="display: none;">
+        <span>Playing: <span id="sessionGameTitle"></span></span>
+        <button id="sessionStopBtn">Stop Session</button>
+      </div>
+
+      <!-- Top Header -->
+      <header class="app-header">
+        <h1>CLOUDPLAY</h1>
+        <div class="header-actions">
+          <a href="settings.html" class="icon-btn" title="Settings">⚙</a>
+        </div>
+      </header>
+
+      <!-- Game Grid Area -->
+      <div class="grid-controls">
+        <input type="text" id="searchInput" class="search-input" placeholder="Search games...">
+      </div>
+      
+      <div id="gamesGrid" class="library-grid">
+        <!-- Game cards injected here by app.js -->
+      </div>
+    </main>
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>

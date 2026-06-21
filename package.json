@@ -1,0 +1,20 @@
+{
+  "name": "geforcenow-clone",
+  "version": "1.0.0",
+  "description": "",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "provision:apps": "node scripts/provision-sunshine-apps.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@aws-sdk/client-sts": "^3.1073.0",
+    "electron": "^42.4.1",
+    "express": "^5.2.1",
+    "node-ssh": "^13.2.1"
+  }
+}
